@@ -1,0 +1,3 @@
+[submodule "dependencies/v4-core"]
+	path = dependencies/v4-core
+	url = https://github.com/Uniswap/v4-core
