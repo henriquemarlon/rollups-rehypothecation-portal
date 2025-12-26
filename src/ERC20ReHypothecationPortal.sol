@@ -44,7 +44,11 @@ contract ERC20ReHypothecationPortal is IERC20Portal, Portal, Ownable {
         IERC4626 yieldSource = _yieldSources[address(token)];
         if (address(yieldSource) == address(0)) revert YieldSourceNotConfigured(address(token));
 
-        token.safeTransferFrom(msg.sender, address(this), value);
+        bool success = token.transferFrom(msg.sender, address(this), value);
+
+        if (!success) {
+            revert ERC20TransferFailed();
+        }
 
         token.forceApprove(address(yieldSource), value);
         yieldSource.deposit(value, appContract);
