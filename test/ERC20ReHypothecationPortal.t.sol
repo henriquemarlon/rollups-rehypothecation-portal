@@ -31,7 +31,7 @@ contract ERC20ReHypothecationPortalTest is Test {
         inputBox = IInputBox(makeAddr("inputBox"));
         vm.mockCall(address(inputBox), abi.encodeWithSelector(IInputBox.addInput.selector), abi.encode(bytes32(0)));
 
-        portal = new ERC20ReHypothecationPortal(inputBox);
+        portal = new ERC20ReHypothecationPortal(inputBox, cartesi);
         appContract = new MockApplication();
 
         token0 = new ERC20Mock("Token0", "TKN0", 18);
@@ -40,8 +40,10 @@ contract ERC20ReHypothecationPortalTest is Test {
         yieldSource0 = IERC4626(address(new ERC4626YieldSourceMock(IERC20(address(token0)))));
         yieldSource1 = IERC4626(address(new ERC4626YieldSourceMock(IERC20(address(token1)))));
 
-        portal.setTokenYieldSource(address(token0), yieldSource0);
-        portal.setTokenYieldSource(address(token1), yieldSource1);
+        vm.startPrank(cartesi);
+        portal.setERC20TokenYieldSource(address(token0), yieldSource0);
+        portal.setERC20TokenYieldSource(address(token1), yieldSource1);
+        vm.stopPrank();
 
         token0.mint(user1, 1e30);
         token0.mint(user2, 1e30);
@@ -58,37 +60,29 @@ contract ERC20ReHypothecationPortalTest is Test {
         token1.approve(address(portal), type(uint256).max);
     }
 
-    function test_setTokenYieldSource_alreadyConfigured_reverts() public {
+    function test_setERC20TokenYieldSource_alreadyConfigured_reverts() public {
+        vm.prank(cartesi);
         vm.expectRevert(
             abi.encodeWithSelector(ERC20ReHypothecationPortal.YieldSourceAlreadyConfigured.selector, address(token0))
         );
-        portal.setTokenYieldSource(address(token0), yieldSource0);
+        portal.setERC20TokenYieldSource(address(token0), yieldSource0);
     }
 
-    function test_setTokenYieldSource_zeroAddress_reverts() public {
-        vm.expectRevert(ERC20ReHypothecationPortal.UnsupportedToken.selector);
-        portal.setTokenYieldSource(address(0), yieldSource0);
-    }
-
-    function test_setTokenYieldSource_invalidYieldSource_reverts() public {
+    function test_setERC20TokenYieldSource_vaultAssetMismatch_reverts() public {
         ERC20Mock newToken = new ERC20Mock("NewToken", "NEW", 18);
 
-        vm.expectRevert(ERC20ReHypothecationPortal.InvalidYieldSource.selector);
-        portal.setTokenYieldSource(address(newToken), IERC4626(address(0)));
-    }
-
-    function test_setTokenYieldSource_vaultAssetMismatch_reverts() public {
-        ERC20Mock newToken = new ERC20Mock("NewToken", "NEW", 18);
-
+        vm.prank(cartesi);
         vm.expectRevert(
-            abi.encodeWithSelector(ERC20ReHypothecationPortal.VaultAssetMismatch.selector, address(newToken), address(token0))
+            abi.encodeWithSelector(
+                ERC20ReHypothecationPortal.VaultAssetMismatch.selector, address(newToken), address(token0)
+            )
         );
-        portal.setTokenYieldSource(address(newToken), yieldSource0);
+        portal.setERC20TokenYieldSource(address(newToken), yieldSource0);
     }
 
-    function test_getTokenYieldSource() public view {
-        assertEq(address(portal.getTokenYieldSource(address(token0))), address(yieldSource0));
-        assertEq(address(portal.getTokenYieldSource(address(token1))), address(yieldSource1));
+    function test_getERC20TokenYieldSource() public view {
+        assertEq(address(portal.getERC20TokenYieldSource(address(token0))), address(yieldSource0));
+        assertEq(address(portal.getERC20TokenYieldSource(address(token1))), address(yieldSource1));
     }
 
     function test_deposit_yieldSourceNotConfigured_reverts() public {
@@ -99,9 +93,7 @@ contract ERC20ReHypothecationPortalTest is Test {
         newToken.approve(address(portal), type(uint256).max);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC20ReHypothecationPortal.YieldSourceNotConfigured.selector, address(newToken)
-            )
+            abi.encodeWithSelector(ERC20ReHypothecationPortal.YieldSourceNotConfigured.selector, address(newToken))
         );
         portal.depositERC20Tokens(IERC20(address(newToken)), address(appContract), 1e18, "");
         vm.stopPrank();
@@ -109,7 +101,9 @@ contract ERC20ReHypothecationPortalTest is Test {
 
     function test_deposit_zeroAddress_reverts() public {
         vm.startPrank(user1);
-        vm.expectRevert(ERC20ReHypothecationPortal.UnsupportedToken.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(ERC20ReHypothecationPortal.YieldSourceNotConfigured.selector, address(0))
+        );
         portal.depositERC20Tokens(IERC20(address(0)), address(appContract), 1e18, "");
         vm.stopPrank();
     }
@@ -214,16 +208,10 @@ contract ERC20ReHypothecationPortalTest is Test {
         token0.mint(address(yieldSource0), amount); // 1e18 yield on 2e18 deposited = 50%
 
         // User1 withdraws their deposited amount
-        _executeVoucher(
-            address(yieldSource0),
-            abi.encodeCall(IERC4626.withdraw, (amount, user1, address(appContract)))
-        );
+        _executeVoucher(address(yieldSource0), abi.encodeCall(IERC4626.withdraw, (amount, user1, address(appContract))));
 
         // User2 withdraws their deposited amount
-        _executeVoucher(
-            address(yieldSource0),
-            abi.encodeCall(IERC4626.withdraw, (amount, user2, address(appContract)))
-        );
+        _executeVoucher(address(yieldSource0), abi.encodeCall(IERC4626.withdraw, (amount, user2, address(appContract))));
 
         // Calculate remaining shares and expected yield using previewRedeem
         uint256 remainingShares = yieldSource0.balanceOf(address(appContract));
@@ -231,8 +219,7 @@ contract ERC20ReHypothecationPortalTest is Test {
 
         // Cartesi redeems remaining shares (the yield)
         _executeVoucher(
-            address(yieldSource0),
-            abi.encodeCall(IERC4626.redeem, (remainingShares, cartesi, address(appContract)))
+            address(yieldSource0), abi.encodeCall(IERC4626.redeem, (remainingShares, cartesi, address(appContract)))
         );
 
         // Verify all shares were redeemed and Cartesi got the yield
