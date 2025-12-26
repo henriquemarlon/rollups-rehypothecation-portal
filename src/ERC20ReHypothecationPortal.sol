@@ -1,73 +1,85 @@
-// (c) Cartesi and individual authors (see AUTHORS)
-// SPDX-License-Identifier: Apache-2.0 (see LICENSE)
-
 pragma solidity ^0.8.8;
 
-import {Currency} from "v4-core/types/Currency.sol";
 import {IERC20} from "@openzeppelin-contracts-5.2.0/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin-contracts-5.2.0/interfaces/IERC4626.sol";
+import {SafeERC20} from "@openzeppelin-contracts-5.2.0/token/ERC20/utils/SafeERC20.sol";
 import {Portal} from "cartesi-rollups-contracts-2.1.1/src/portals/Portal.sol";
 import {IInputBox} from "cartesi-rollups-contracts-2.1.1/src/inputs/IInputBox.sol";
 import {IERC20Portal} from "cartesi-rollups-contracts-2.1.1/src/portals/IERC20Portal.sol";
 import {InputEncoding} from "cartesi-rollups-contracts-2.1.1/src/common/InputEncoding.sol";
 
-/// referece: https://github.com/OpenZeppelin/uniswap-hooks/blob/master/src/general/ReHypothecationHook.sol
-
-/// @title ERC-20 Portal
-/// 
-/// @notice This contract allows anyone to perform transfers of
-/// ERC-20 tokens to an application contract while informing the off-chain machine.
+/// @title ERC-20 Re-Hypothecation Portal
+///
+/// @notice A Cartesi Portal that enables token rehypothecation into external yield sources.
+///
+/// Allows users to deposit assets into external yield-generating sources (i.e. ERC-4626 vaults or lending protocols) while the application holds the vault shares and manages user balances off-chain.
+///
+/// Reference: https://github.com/OpenZeppelin/uniswap-hooks/blob/master/src/general/ReHypothecationHook.sol
 contract ERC20ReHypothecationPortal is IERC20Portal, Portal {
-    /// @notice Constructs the portal.
-    /// @param inputBox The input box used by the portal
+    using SafeERC20 for IERC20;
+
+    /// @dev Mapping from token address to its ERC-4626 yield source (vault)
+    mapping(address token => IERC4626 vault) private _yieldSources;
+
+    /// @dev Error thrown when attempting to use an unsupported token (e.g. address(0))
+    error UnsupportedToken();
+
+    /// @dev Error thrown when no yield source is configured for a token
+    error YieldSourceNotConfigured(address token);
+
+    /// @dev Error thrown when yield source is already configured
+    error YieldSourceAlreadyConfigured(address token);
+
+    /// @dev Error thrown when vault asset doesn't match token
+    error VaultAssetMismatch(address token, address vaultAsset);
+
+    /// @dev Error thrown when attempting to use an invalid yield source
+    error InvalidYieldSource();
+
     constructor(IInputBox inputBox) Portal(inputBox) {}
 
-    function depositERC20Tokens(
-        IERC20 token,
-        address appContract,
-        uint256 value,
-        bytes calldata execLayerData
-    ) external override {
-        bool success = token.transferFrom(msg.sender, appContract, value);
+    /// @inheritdoc IERC20Portal
+    /// @dev Transfers tokens from sender, deposits into the configured ERC-4626 yield source,
+    /// and notifies the application.
+    /// The vault shares are held by the application, while user balances are tracked off-chain.
+    function depositERC20Tokens(IERC20 token, address appContract, uint256 value, bytes calldata execLayerData)
+        external
+        override
+    {
+        address tokenAddress = address(token);
+        if (tokenAddress == address(0)) revert UnsupportedToken();
 
-        if (!success) {
-            revert ERC20TransferFailed();
-        }
+        IERC4626 yieldSource = _yieldSources[tokenAddress];
+        if (address(yieldSource) == address(0)) revert YieldSourceNotConfigured(tokenAddress);
 
-        bytes memory payload =
-            InputEncoding.encodeERC20Deposit(token, msg.sender, value, execLayerData);
+        token.safeTransferFrom(msg.sender, address(this), value);
+        token.approve(address(yieldSource), value);
+        uint256 shares = yieldSource.deposit(value, appContract);
 
+        bytes memory payload = InputEncoding.encodeERC20Deposit(token, msg.sender, value, execLayerData);
         getInputBox().addInput(appContract, payload);
     }
 
-    //     /**
-    //  * @dev Returns the `yieldSource` address for a given `currency`.
-    //  *
-    //  * Note: Must be implemented and adapted for the desired type of yield sources, such as
-    //  *  ERC-4626 Vaults, or any custom DeFi protocol interface, optionally handling native currency.
-    //  */
-    // function getCurrencyYieldSource(Currency currency) public view virtual returns (address yieldSource);
+    /// @notice Returns the yield source configured for a given token
+    /// @param token The token address to query
+    /// @return yieldSource The ERC-4626 vault used as yield source
+    function getTokenYieldSource(address token) public view returns (IERC4626 yieldSource) {
+        return _yieldSources[token];
+    }
 
-    // /**
-    //  * @dev Deposits a specified `amount` of `currency` into its corresponding yield source.
-    //  *
-    //  * Note: Must be implemented and adapted for the desired type of yield sources, such as
-    //  *  ERC-4626 Vaults, or any custom DeFi protocol interface, optionally handling native currency.
-    //  */
-    // function _depositToYieldSource(Currency currency, uint256 amount) internal virtual;
-
-    // /**
-    //  * @dev Withdraws a specified `amount` of `currency` from its corresponding yield source.
-    //  *
-    //  * Note: Must be implemented and adapted for the desired type of yield sources, such as
-    //  *  ERC-4626 Vaults, or any custom DeFi protocol interface, optionally handling native currency.
-    //  */
-    // function _withdrawFromYieldSource(Currency currency, uint256 amount) internal virtual;
-
-    // /**
-    //  * @dev Gets the `amount` of `currency` deposited in its corresponding yield source.
-    //  *
-    //  * Note: Must be implemented and adapted for the desired type of yield sources, such as
-    //  *  ERC-4626 Vaults, or any custom DeFi protocol interface, optionally handling native currency.
-    //  */
-    // function _getAmountInYieldSource(Currency currency) internal view virtual returns (uint256 amount);
+    /// @notice Configures an ERC-4626 vault as the yield source for a token
+    /// @param token The token address to configure
+    /// @param vault The ERC-4626 vault to use as yield source
+    function setTokenYieldSource(address token, IERC4626 vault) external {
+        if (token == address(0)) revert UnsupportedToken();
+        if (address(vault) == address(0)) revert InvalidYieldSource();
+        if (address(_yieldSources[token]) != address(0)) {
+            revert YieldSourceAlreadyConfigured(token);
+        }
+        address vaultAsset = vault.asset();
+        if (vaultAsset != token) {
+            revert VaultAssetMismatch(token, vaultAsset);
+        }
+        _yieldSources[token] = vault;
+    }
 }
