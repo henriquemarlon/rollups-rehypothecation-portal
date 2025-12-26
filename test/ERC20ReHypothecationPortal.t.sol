@@ -150,8 +150,6 @@ contract ERC20ReHypothecationPortalTest is Test {
         assertEq(yieldSource1.balanceOf(address(appContract)), amount);
     }
 
-    // -- WITHDRAW VIA VOUCHER -- //
-
     function test_withdraw() public {
         uint256 depositAmount = 1e18;
 
@@ -208,27 +206,24 @@ contract ERC20ReHypothecationPortalTest is Test {
         token0.mint(address(yieldSource0), amount); // 1e18 yield on 2e18 deposited = 50%
 
         // User1 withdraws their deposited amount
-        _executeVoucher(address(yieldSource0), abi.encodeCall(IERC4626.withdraw, (amount, user1, address(appContract))));
+        bytes memory withdrawCall1 = abi.encodeCall(IERC4626.withdraw, (amount, user1, address(appContract)));
+        appContract.executeOutput(abi.encodeCall(Outputs.Voucher, (address(yieldSource0), 0, withdrawCall1)));
 
         // User2 withdraws their deposited amount
-        _executeVoucher(address(yieldSource0), abi.encodeCall(IERC4626.withdraw, (amount, user2, address(appContract))));
+        bytes memory withdrawCall2 = abi.encodeCall(IERC4626.withdraw, (amount, user2, address(appContract)));
+        appContract.executeOutput(abi.encodeCall(Outputs.Voucher, (address(yieldSource0), 0, withdrawCall2)));
 
         // Calculate remaining shares and expected yield using previewRedeem
         uint256 remainingShares = yieldSource0.balanceOf(address(appContract));
         uint256 expectedYield = yieldSource0.previewRedeem(remainingShares);
 
         // Cartesi redeems remaining shares (the yield)
-        _executeVoucher(
-            address(yieldSource0), abi.encodeCall(IERC4626.redeem, (remainingShares, cartesi, address(appContract)))
-        );
+        bytes memory redeemCall = abi.encodeCall(IERC4626.redeem, (remainingShares, cartesi, address(appContract)));
+        appContract.executeOutput(abi.encodeCall(Outputs.Voucher, (address(yieldSource0), 0, redeemCall)));
 
         // Verify all shares were redeemed and Cartesi got the yield
         assertEq(yieldSource0.balanceOf(address(appContract)), 0);
         assertEq(token0.balanceOf(cartesi), expectedYield);
-    }
-
-    function _executeVoucher(address target, bytes memory payload) internal {
-        appContract.executeOutput(abi.encodeCall(Outputs.Voucher, (target, 0, payload)));
     }
 
     function testFuzz_depositAndWithdraw(uint128 depositAmount) public {
