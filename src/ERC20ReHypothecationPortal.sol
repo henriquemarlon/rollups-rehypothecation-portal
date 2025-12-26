@@ -1,11 +1,11 @@
 pragma solidity ^0.8.8;
 
-import {IERC20} from "@openzeppelin-contracts-5.2.0/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin-contracts-5.2.0/interfaces/IERC4626.sol";
-import {SafeERC20} from "@openzeppelin-contracts-5.2.0/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin-contracts-5.2.0/access/Ownable.sol";
+import {IERC20} from "@openzeppelin-contracts-5.2.0/token/ERC20/IERC20.sol";
 import {Portal} from "cartesi-rollups-contracts-2.1.1/src/portals/Portal.sol";
+import {IERC4626} from "@openzeppelin-contracts-5.2.0/interfaces/IERC4626.sol";
 import {IInputBox} from "cartesi-rollups-contracts-2.1.1/src/inputs/IInputBox.sol";
+import {SafeERC20} from "@openzeppelin-contracts-5.2.0/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Portal} from "cartesi-rollups-contracts-2.1.1/src/portals/IERC20Portal.sol";
 import {InputEncoding} from "cartesi-rollups-contracts-2.1.1/src/common/InputEncoding.sol";
 
