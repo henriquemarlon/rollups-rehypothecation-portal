@@ -108,6 +108,19 @@ contract ERC20ReHypothecationPortalTest is Test {
         vm.stopPrank();
     }
 
+    function test_deposit_transferFailed_reverts() public {
+        ERC20Mock newToken = new ERC20Mock("NewToken", "NEW", 18);
+        newToken.mint(user1, 1e18);
+
+        IERC4626 newYieldSource = IERC4626(address(new ERC4626YieldSourceMock(IERC20(address(newToken)))));
+        vm.prank(cartesi);
+        portal.setERC20TokenYieldSource(address(newToken), newYieldSource);
+
+        vm.prank(user1);
+        vm.expectRevert();
+        portal.depositERC20Tokens(IERC20(address(newToken)), address(appContract), 1e18, "");
+    }
+
     function test_deposit_transfersTokensAndMintsShares() public {
         uint256 amount = 1e18;
 
