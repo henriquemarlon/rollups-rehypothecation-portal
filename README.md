@@ -1,17 +1,17 @@
 <div align="center">
-<img src="https://github.com/user-attachments/assets/446065f2-e029-4634-a3da-bb1a3e82fe67" width="150" height="150">
+<img src="https://github.com/user-attachments/assets/b21f06ef-22ab-45ce-b3bb-df02253ed7ee" width="150" height="150">
 </div>
 <br>
 <div align="center">
 <i>A Cartesi Rollups Portal for ERC-20 Token Re-Hypothecation</i>
 </div>
 <div align="center">
-<b>Deposit tokens into yield-generating ERC-4626 vaults while maintaining Cartesi app integration</b>
+<b>Using yield‑generating ERC‑4626 vaults while keeping tokens available for use in an application.</b>
 </div>
 <br>
 <p align="center">
-	<img src="https://img.shields.io/github/license/henriquemarlon/rollups-rehypothecation?style=default&logo=opensourceinitiative&logoColor=white&color=48AED9" alt="license">
-	<img src="https://img.shields.io/github/last-commit/henriquemarlon/rollups-rehypothecation?style=default&logo=git&logoColor=white&color=000000" alt="last-commit">
+	<img src="https://img.shields.io/github/license/henriquemarlon/rollups-rehypothecation-portal?style=default&logo=opensourceinitiative&logoColor=white&color=008DA5" alt="license">
+	<img src="https://img.shields.io/github/last-commit/henriquemarlon/rollups-rehypothecation-portal?style=default&logo=git&logoColor=white&color=000000" alt="last-commit">
 </p>
 
 ## Table of Contents
@@ -27,13 +27,70 @@
 
 ## Overview
 
-<!-- TODO: Add project description here -->
+This project implements a re-hypothecation mechanism for Cartesi Rollups applications. Re-hypothecation allows deposited assets to be put to work in external yield-generating protocols while remaining available for use within the Cartesi application.
+
+The `ERC20ReHypothecationPortal` routes deposited tokens to [ERC-4626](https://eips.ethereum.org/EIPS/eip-4626) vaults, which serve as yield sources. Since major DeFi protocols like [Morpho](https://github.com/morpho-org/vault-v2/blob/main/src/VaultV2.sol) and [Aave](https://aave.com/docs/aave-v3/vaults/overview) implement ERC-4626 compatible vaults, they can be directly integrated as yield sources, enabling applications to earn yield from lending markets and liquidity pools.
 
 ## Architecture
 
+### Deposit Flow
+
 ```mermaid
-<!-- TODO: Add architecture diagram here -->
+graph LR
+    classDef core fill:#00F6FF,color:#000
+    classDef external fill:#008DA5,color:#fff
+
+    Anyone[Anyone]:::external
+    ERC20[ERC-20 Token]:::external
+    ERC20ReHypothecationPortal[ERC-20<br>Re-Hypothecation Portal]:::core
+    ERC4626Vault[ERC-4626 Vault]:::external
+    Application[Application]:::core
+    InputBox[Input Box]:::core
+
+    Anyone -- depositERC20Tokens --> ERC20ReHypothecationPortal
+    ERC20ReHypothecationPortal -- transferFrom --> ERC20
+    ERC20ReHypothecationPortal -- deposit --> ERC4626Vault
+    ERC4626Vault -- shares --> Application
+    ERC20ReHypothecationPortal -- addInput --> InputBox
+    InputBox -- input --> Application
 ```
+
+### Withdraw Flow
+
+```mermaid
+graph LR
+    classDef core fill:#00F6FF,color:#000
+    classDef external fill:#008DA5,color:#fff
+
+    Anyone[Anyone]:::external
+    Application[Application]:::core
+    ERC4626Vault[ERC-4626 Vault]:::external
+
+    Anyone -- executeOutput --> Application
+    Application -- withdraw --> ERC4626Vault
+    ERC4626Vault -- tokens --> Anyone
+```
+
+### Claim Yield Flow
+
+```mermaid
+graph LR
+    classDef core fill:#00F6FF,color:#000
+    classDef external fill:#008DA5,color:#fff
+
+    Anyone[Anyone]:::external
+    Application[Application]:::core
+    ClaimYield[Claim Yield<br>Implementation]:::core
+    ERC4626Vault[ERC-4626 Vault]:::external
+
+    Anyone -- executeOutput --> Application
+    Application -- delegatecall --> ClaimYield
+    ClaimYield -- balanceOf --> ERC4626Vault
+    ClaimYield -- previewRedeem --> ERC4626Vault
+    ClaimYield -- withdraw --> ERC4626Vault
+    ERC4626Vault -- tokens --> Anyone
+```
+
 
 ## Getting Started
 
@@ -67,9 +124,7 @@
 
 #### Contracts
 
-The `ERC20ReHypothecationPortal` enables users to deposit ERC-20 tokens that are automatically routed to configured ERC-4626 yield sources (vaults). The vault shares are held by the Cartesi application while user balances are tracked off-chain.
-
-Each deployment script saves its configuration to JSON files in the `./deployments/` directory for easy reference and integration.
+The `ERC20ReHypothecationPortal` enables users to deposit ERC-20 tokens that are automatically routed to configured ERC-4626 yield sources (vaults). The vault shares are held by the Cartesi application while user balances are tracked off-chain. This allows idle tokens to generate yield through lending protocols, liquidity pools, or other DeFi strategies while remaining available for use within the Cartesi application.
 
 During deployment, you will be prompted to enter:
 - **InputBox address**: The Cartesi InputBox contract address
