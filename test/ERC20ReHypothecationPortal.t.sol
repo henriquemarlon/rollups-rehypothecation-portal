@@ -25,13 +25,13 @@ contract ERC20ReHypothecationPortalTest is Test {
 
     address user1 = makeAddr("user1");
     address user2 = makeAddr("user2");
-    address cartesi = makeAddr("cartesi");
+    address anyone = makeAddr("anyone");
 
     function setUp() public {
         inputBox = IInputBox(makeAddr("inputBox"));
         vm.mockCall(address(inputBox), abi.encodeWithSelector(IInputBox.addInput.selector), abi.encode(bytes32(0)));
 
-        portal = new ERC20ReHypothecationPortal(inputBox, cartesi);
+        portal = new ERC20ReHypothecationPortal(inputBox, anyone);
         appContract = new MockApplication();
 
         token0 = new ERC20Mock("Token0", "TKN0", 18);
@@ -40,7 +40,7 @@ contract ERC20ReHypothecationPortalTest is Test {
         yieldSource0 = IERC4626(address(new ERC4626YieldSourceMock(IERC20(address(token0)))));
         yieldSource1 = IERC4626(address(new ERC4626YieldSourceMock(IERC20(address(token1)))));
 
-        vm.startPrank(cartesi);
+        vm.startPrank(anyone);
         portal.setERC20TokenYieldSource(address(token0), yieldSource0);
         portal.setERC20TokenYieldSource(address(token1), yieldSource1);
         vm.stopPrank();
@@ -61,7 +61,7 @@ contract ERC20ReHypothecationPortalTest is Test {
     }
 
     function test_setERC20TokenYieldSource_alreadyConfigured_reverts() public {
-        vm.prank(cartesi);
+        vm.prank(anyone);
         vm.expectRevert(
             abi.encodeWithSelector(ERC20ReHypothecationPortal.YieldSourceAlreadyConfigured.selector, address(token0))
         );
@@ -71,7 +71,7 @@ contract ERC20ReHypothecationPortalTest is Test {
     function test_setERC20TokenYieldSource_vaultAssetMismatch_reverts() public {
         ERC20Mock newToken = new ERC20Mock("NewToken", "NEW", 18);
 
-        vm.prank(cartesi);
+        vm.prank(anyone);
         vm.expectRevert(
             abi.encodeWithSelector(
                 ERC20ReHypothecationPortal.VaultAssetMismatch.selector, address(newToken), address(token0)
@@ -113,7 +113,7 @@ contract ERC20ReHypothecationPortalTest is Test {
         newToken.mint(user1, 1e18);
 
         IERC4626 newYieldSource = IERC4626(address(new ERC4626YieldSourceMock(IERC20(address(newToken)))));
-        vm.prank(cartesi);
+        vm.prank(anyone);
         portal.setERC20TokenYieldSource(address(newToken), newYieldSource);
 
         vm.prank(user1);
@@ -231,12 +231,12 @@ contract ERC20ReHypothecationPortalTest is Test {
         uint256 expectedYield = yieldSource0.previewRedeem(remainingShares);
 
         // Cartesi redeems remaining shares (the yield)
-        bytes memory redeemCall = abi.encodeCall(IERC4626.redeem, (remainingShares, cartesi, address(appContract)));
+        bytes memory redeemCall = abi.encodeCall(IERC4626.redeem, (remainingShares, anyone, address(appContract)));
         appContract.executeOutput(abi.encodeCall(Outputs.Voucher, (address(yieldSource0), 0, redeemCall)));
 
         // Verify all shares were redeemed and Cartesi got the yield
         assertEq(yieldSource0.balanceOf(address(appContract)), 0);
-        assertEq(token0.balanceOf(cartesi), expectedYield);
+        assertEq(token0.balanceOf(anyone), expectedYield);
     }
 
     function testFuzz_depositAndWithdraw(uint128 depositAmount) public {
