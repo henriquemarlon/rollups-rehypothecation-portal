@@ -1,3 +1,5 @@
+-include .env
+
 START_LOG = @echo "======================= START OF LOG ======================="
 END_LOG   = @echo "======================== END OF LOG ========================"
 
@@ -30,17 +32,43 @@ endef
 # BUILD & TEST COMMANDS
 # =============================================================================
 
+.PHONY: env
+env: ## Create .env file from .env.tmpl
+	$(START_LOG)
+	@if [ -f .env ]; then \
+		echo ".env file already exists. Skipping..."; \
+	else \
+		cp .env.tmpl .env; \
+		echo ".env file created from .env.tmpl"; \
+	fi
+	$(END_LOG)
+
 .PHONY: build
 build: ## Build the contracts
 	$(START_LOG)
 	@forge build
 	$(END_LOG)
 
-.PHONY: test
-test: ## Run the contracts tests
+.PHONY: test-unit
+test-unit: ## Run unit tests (excludes fork tests)
 	$(START_LOG)
 	@forge clean
-	@forge test -vvv
+	@forge test --no-match-test 'testFork_*' -vvvv
+	$(END_LOG)
+
+.PHONY: test-fork
+test-fork: ## Run fork tests only
+	$(START_LOG)
+	@forge clean
+	@forge test --match-test 'testFork_*' --fork-url $(RPC_URL) -vvvv
+	$(END_LOG)
+
+.PHONY: test
+test: ## Run all tests (unit + fork)
+	$(START_LOG)
+	@forge clean
+	@forge test --no-match-test 'testFork_*' -vvvv
+	@forge test --match-test 'testFork_*' --fork-url $(RPC_URL) -vvv
 	$(END_LOG)
 
 .PHONY: fmt

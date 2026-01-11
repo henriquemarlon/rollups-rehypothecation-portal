@@ -1,22 +1,21 @@
 name: build-and-test
 
 on:
-    push:
-      tags:
-        - "*"
-    pull_request:
-      branches: [main]
-    workflow_dispatch:
-  
+  push:
+    tags:
+      - "*"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
 permissions:
-    contents: read
+  contents: read
 
 env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  check:
-    name: Foundry project
+  build-and-lint:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,5 +41,50 @@ jobs:
       - name: Run Forge build
         run: forge build --sizes
 
-      - name: Run Forge tests
-        run: forge test -vvv
+  unit-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Show Forge version
+        run: forge --version
+
+      - name: Install Solidity packages
+        shell: bash
+        run: forge soldeer install
+
+      - name: Run unit tests
+        run: make test-unit
+
+  fork-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      RPC_URL: ${{ secrets.RPC_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Show Forge version
+        run: forge --version
+
+      - name: Install Solidity packages
+        shell: bash
+        run: forge soldeer install
+
+      - name: Run fork tests
+        run: make test-fork

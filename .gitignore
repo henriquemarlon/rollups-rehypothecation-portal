@@ -8,3 +8,4 @@
 /out
 lcov.info
 state.json
+.env

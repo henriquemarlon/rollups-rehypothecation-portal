@@ -12,10 +12,7 @@ import {IERC20Portal} from "cartesi-rollups-contracts-2.1.1/src/portals/IERC20Po
 import {InputEncoding} from "cartesi-rollups-contracts-2.1.1/src/common/InputEncoding.sol";
 
 /// @title ERC-20 Re-Hypothecation Portal
-///
-/// @notice A Cartesi Portal that enables token re-hypothecation into external yield sources.
-///
-/// Allows users to deposit assets into external yield-generating sources (i.e. ERC-4626 vaults or lending protocols) while the application holds the vault shares and manages user balances off-chain.
+/// @notice A Cartesi Portal that enables token re-hypothecation into external yield sources. Allows users to deposit assets into external yield-generating sources (i.e. ERC-4626 vaults or lending protocols) while the application holds the vault shares and manages user balances off-chain.
 ///
 /// Reference: https://github.com/OpenZeppelin/uniswap-hooks/blob/master/src/general/ReHypothecationHook.sol
 contract ERC20ReHypothecationPortal is IERC20Portal, Portal, Ownable {
