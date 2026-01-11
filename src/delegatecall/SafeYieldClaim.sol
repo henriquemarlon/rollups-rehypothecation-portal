@@ -20,9 +20,9 @@ contract SafeYieldClaim {
         public
         returns (uint256 yieldClaimed)
     {
-        uint256 shares = vault.balanceOf(address(this));
-        uint256 totalAssets = vault.previewRedeem(shares);
-        yieldClaimed = totalAssets > totalSupplyOffChain ? totalAssets - totalSupplyOffChain : 0;
+        uint256 rehypothecatedShares = vault.balanceOf(address(this));
+        uint256 rehypothecatedAssets = vault.convertToAssets(rehypothecatedShares);
+        yieldClaimed = rehypothecatedAssets > totalSupplyOffChain ? rehypothecatedAssets - totalSupplyOffChain : 0;
 
         if (yieldClaimed > 0) {
             vault.withdraw(yieldClaimed, receiver, address(this));

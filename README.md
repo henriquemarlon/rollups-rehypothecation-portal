@@ -90,39 +90,13 @@ graph LR
     Anyone -- executeOutput --> Application
     Application -- delegatecall --> ClaimYield
     ClaimYield -- balanceOf --> ERC4626Vault
-    ClaimYield -- previewRedeem --> ERC4626Vault
+    ClaimYield -- convertToAssets --> ERC4626Vault
     ClaimYield -- withdraw --> ERC4626Vault
     ERC4626Vault -- tokens --> Anyone
 ```
 
 
 ## Getting Started
-
-### Prerequisites
-
-1. [Install Foundry](https://book.getfoundry.sh/getting-started/installation) for smart contract development and testing;
-
-2. Import your private key for contract deployment:
-
-   ```sh
-   cast wallet import defaultKey --interactive
-   ```
-
-   This will prompt you to enter your private key securely for contract deployment operations.
-
-### Environment
-
-1. Create the environment variables file:
-
-   ```sh
-   cp .env.example .env
-   ```
-
-2. Edit the `.env` file with your configuration values:
-
-   ```
-   RPC_URL=<your_rpc_url>
-   ```
 
 ### Running
 
@@ -148,35 +122,49 @@ make deploy-mock-application
 
 ## Testing
 
-Run contract tests:
+The project includes two types of tests:
+
+### Unit Tests
+
+Fast, isolated tests that don't require external dependencies:
+
+```sh
+make test-unit
+```
+
+### Fork Tests
+
+Integration tests that run against a forked Ethereum mainnet, testing real interactions with DeFi protocols like Morpho.
+
+#### Prerequisites
+
+1. **RPC Access**: You need an Ethereum mainnet RPC endpoint (Alchemy, Infura, or local node)
+
+2. **Environment Setup**:
+   ```sh
+   # Create .env file from template
+   make env
+
+   # Edit .env and configure your RPC URL
+   # RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY
+   ```
+
+3. **Run Fork Tests**:
+   ```sh
+   make test-fork
+   ```
+
+The fork tests use real mainnet contracts:
+- **USDC**: `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48`
+- **Morpho Vault**: `0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB` (by https://www.steakhouse.financial/)
+- **InputBox**: `0xc70074BDD26d8cF983Ca6A5b89b8db52D5850051`
+
+### Run All Tests
+
+Run both unit and fork tests in sequence:
 
 ```sh
 make test
-```
-
-## Testing on Tenderly Fork
-
-Test with real DeFi protocols (Morpho, Aave) using Tenderly forks.
-
-### Setup
-
-1. Create a Tenderly fork of Ethereum mainnet
-2. Configure `foundry.toml`:
-   ```toml
-   [rpc_endpoints]
-   tenderly = "${TENDERLY_FORK_RPC}"
-   ```
-
-### Deploy Contracts
-
-```bash
-# Using Makefile
-make deploy
-
-# Or using forge script directly
-forge script scripts/DeployERC20ReHypothecationPortal.s.sol --rpc-url tenderly --broadcast --account defaultKey
-forge script scripts/DeploySafeYieldClaim.s.sol --rpc-url tenderly --broadcast --account defaultKey
-forge script scripts/DeployMockApplication.s.sol --rpc-url tenderly --broadcast --account defaultKey
 ```
 
 ## Development
