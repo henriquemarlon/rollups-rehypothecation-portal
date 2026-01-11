@@ -1,5 +1,3 @@
--include .env
-
 START_LOG = @echo "======================= START OF LOG ======================="
 END_LOG   = @echo "======================== END OF LOG ========================"
 
@@ -16,22 +14,16 @@ define FORGE_SCRIPT
 	$(END_LOG)
 endef
 
-# Generic forge script runner (simulation only)
-define FORGE_SCRIPT_SIMULATE
-	$(START_LOG)
-	@mkdir -p ./deployments
-	@forge clean
-	@forge script $(1) \
-		-vvv
-	$(END_LOG)
-endef
-
 define deploy_erc20_rehypothecation_portal
 	$(call FORGE_SCRIPT,./scripts/DeployERC20ReHypothecationPortal.s.sol:DeployERC20ReHypothecationPortal)
 endef
 
-define simulate_erc20_rehypothecation_portal
-	$(call FORGE_SCRIPT_SIMULATE,./scripts/DeployERC20ReHypothecationPortal.s.sol:DeployERC20ReHypothecationPortal)
+define deploy_safe_yield_claim
+	$(call FORGE_SCRIPT,./scripts/DeploySafeYieldClaim.s.sol:DeploySafeYieldClaim)
+endef
+
+define deploy_mock_application
+	$(call FORGE_SCRIPT,./scripts/DeployMockApplication.s.sol:DeployMockApplication)
 endef
 
 # =============================================================================
@@ -63,17 +55,9 @@ fmt: ## Format contracts
 # =============================================================================
 
 .PHONY: deploy
-deploy: deploy-erc20-rehypothecation-portal ## Deploy all contracts
+deploy: deploy-erc20-rehypothecation-portal deploy-safe-yield-claim deploy-mock-application ## Deploy all contracts
 	$(START_LOG)
 	@echo "All contracts deployed! Check ./deployments/ for deployment files"
-	$(END_LOG)
-
-.PHONY: deploy-simulate
-deploy-simulate: ## Simulate deployment without broadcasting
-	$(START_LOG)
-	@echo "Simulating ERC20ReHypothecationPortal deployment..."
-	@$(call FORGE_SCRIPT_SIMULATE,./scripts/DeployERC20ReHypothecationPortal.s.sol:DeployERC20ReHypothecationPortal)
-	@echo "All contract simulations completed!"
 	$(END_LOG)
 
 .PHONY: deploy-erc20-rehypothecation-portal
@@ -81,6 +65,20 @@ deploy-erc20-rehypothecation-portal: ## Deploy ERC20ReHypothecationPortal contra
 	$(START_LOG)
 	@$(deploy_erc20_rehypothecation_portal)
 	@echo "ERC20ReHypothecationPortal deployment completed! Check ./deployments/ for addresses"
+	$(END_LOG)
+
+.PHONY: deploy-safe-yield-claim
+deploy-safe-yield-claim: ## Deploy SafeYieldClaim contract
+	$(START_LOG)
+	@$(deploy_safe_yield_claim)
+	@echo "SafeYieldClaim deployment completed! Check ./deployments/ for addresses"
+	$(END_LOG)
+
+.PHONY: deploy-mock-application
+deploy-mock-application: ## Deploy MockApplication contract (for testing)
+	$(START_LOG)
+	@$(deploy_mock_application)
+	@echo "MockApplication deployment completed! Check ./deployments/ for addresses"
 	$(END_LOG)
 
 # =============================================================================

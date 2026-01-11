@@ -1,9 +1,11 @@
-pragma solidity ^0.8.8;
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.27;
 
 import {Script} from "forge-std-1.12.0/src/Script.sol";
 import {console} from "forge-std-1.12.0/src/console.sol";
 import {IInputBox} from "cartesi-rollups-contracts-2.1.1/src/inputs/IInputBox.sol";
-import {ERC20ReHypothecationPortal} from "../src/ERC20ReHypothecationPortal.sol";
+import {ERC20ReHypothecationPortal} from "../src/portal/ERC20ReHypothecationPortal.sol";
 
 contract DeployERC20ReHypothecationPortal is Script {
     ERC20ReHypothecationPortal public portal;

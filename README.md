@@ -134,18 +134,17 @@ During deployment, you will be prompted to enter:
 - **InputBox address**: The Cartesi InputBox contract address
 - **Initial owner address**: The address that will own the portal contract
 
-1. Deploy contracts:
+Deploy contracts:
 
-   ```sh
-   make deploy
-   ```
+```sh
+# Deploy all contracts
+make deploy
 
-2. Deploy individual contracts:
-
-   ```sh
-   # Deploy ERC20ReHypothecationPortal
-   make deploy-erc20-rehypothecation-portal
-   ```
+# Or deploy individual contracts:
+make deploy-erc20-rehypothecation-portal
+make deploy-safe-yield-claim
+make deploy-mock-application
+```
 
 ## Testing
 
@@ -153,6 +152,31 @@ Run contract tests:
 
 ```sh
 make test
+```
+
+## Testing on Tenderly Fork
+
+Test with real DeFi protocols (Morpho, Aave) using Tenderly forks.
+
+### Setup
+
+1. Create a Tenderly fork of Ethereum mainnet
+2. Configure `foundry.toml`:
+   ```toml
+   [rpc_endpoints]
+   tenderly = "${TENDERLY_FORK_RPC}"
+   ```
+
+### Deploy Contracts
+
+```bash
+# Using Makefile
+make deploy
+
+# Or using forge script directly
+forge script scripts/DeployERC20ReHypothecationPortal.s.sol --rpc-url tenderly --broadcast --account defaultKey
+forge script scripts/DeploySafeYieldClaim.s.sol --rpc-url tenderly --broadcast --account defaultKey
+forge script scripts/DeployMockApplication.s.sol --rpc-url tenderly --broadcast --account defaultKey
 ```
 
 ## Development

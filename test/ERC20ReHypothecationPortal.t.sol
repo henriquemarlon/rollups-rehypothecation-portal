@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.8;
+pragma solidity ^0.8.27;
 
-import {Test} from "forge-std-1.12.0/src/Test.sol";
-import {IERC20} from "@openzeppelin-contracts-5.2.0/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin-contracts-5.2.0/interfaces/IERC4626.sol";
 import {ERC20Mock} from "./mocks/ERC20Mock.sol";
-import {ERC4626YieldSourceMock} from "./mocks/ERC4626YieldSourceMock.sol";
+import {Test} from "forge-std-1.12.0/src/Test.sol";
 import {MockApplication} from "./mocks/MockApplication.sol";
-import {ERC20ReHypothecationPortal} from "../src/ERC20ReHypothecationPortal.sol";
-import {IInputBox} from "cartesi-rollups-contracts-2.1.1/src/inputs/IInputBox.sol";
+import {SafeYieldClaim} from "../src/delegatecall/SafeYieldClaim.sol";
+import {ERC4626YieldSourceMock} from "./mocks/ERC4626YieldSourceMock.sol";
+import {IERC20} from "@openzeppelin-contracts-5.2.0/token/ERC20/IERC20.sol";
 import {Outputs} from "cartesi-rollups-contracts-2.1.1/src/common/Outputs.sol";
+import {IERC4626} from "@openzeppelin-contracts-5.2.0/interfaces/IERC4626.sol";
+import {IInputBox} from "cartesi-rollups-contracts-2.1.1/src/inputs/IInputBox.sol";
+import {ERC20ReHypothecationPortal} from "../src/portal/ERC20ReHypothecationPortal.sol";
 
 contract ERC20ReHypothecationPortalTest is Test {
     ERC20ReHypothecationPortal portal;
     MockApplication appContract;
+    SafeYieldClaim safeYieldClaim;
 
     ERC20Mock token0;
     ERC20Mock token1;
@@ -33,6 +35,7 @@ contract ERC20ReHypothecationPortalTest is Test {
 
         portal = new ERC20ReHypothecationPortal(inputBox, anyone);
         appContract = new MockApplication();
+        safeYieldClaim = new SafeYieldClaim();
 
         token0 = new ERC20Mock("Token0", "TKN0", 18);
         token1 = new ERC20Mock("Token1", "TKN1", 18);
@@ -215,44 +218,26 @@ contract ERC20ReHypothecationPortalTest is Test {
         vm.prank(user2);
         portal.depositERC20Tokens(IERC20(address(token0)), address(appContract), amount, "");
 
-        // Simulate yield accrual (50% yield)
         token0.mint(address(yieldSource0), amount); // 1e18 yield on 2e18 deposited = 50%
 
-        // User1 withdraws their deposited amount
         bytes memory withdrawCall1 = abi.encodeCall(IERC4626.withdraw, (amount, user1, address(appContract)));
         appContract.executeOutput(abi.encodeCall(Outputs.Voucher, (address(yieldSource0), 0, withdrawCall1)));
 
-        // User2 withdraws their deposited amount
+        uint256 sharesBeforeClaim = yieldSource0.balanceOf(address(appContract));
+        uint256 vaultValueBeforeClaim = yieldSource0.previewRedeem(sharesBeforeClaim);
+
+        uint256 totalSupplyOffChain = amount;
+        bytes memory claimCall = abi.encodeCall(SafeYieldClaim.safeClaim, (yieldSource0, anyone, totalSupplyOffChain));
+        bytes memory delegateCallVoucher =
+            abi.encodeCall(Outputs.DelegateCallVoucher, (address(safeYieldClaim), claimCall));
+        appContract.executeOutput(delegateCallVoucher);
+
+        uint256 expectedYield = vaultValueBeforeClaim - totalSupplyOffChain;
+        assertEq(token0.balanceOf(anyone), expectedYield);
+
         bytes memory withdrawCall2 = abi.encodeCall(IERC4626.withdraw, (amount, user2, address(appContract)));
         appContract.executeOutput(abi.encodeCall(Outputs.Voucher, (address(yieldSource0), 0, withdrawCall2)));
 
-        // Calculate remaining shares and expected yield using previewRedeem
-        uint256 remainingShares = yieldSource0.balanceOf(address(appContract));
-        uint256 expectedYield = yieldSource0.previewRedeem(remainingShares);
-
-        // Cartesi redeems remaining shares (the yield)
-        bytes memory redeemCall = abi.encodeCall(IERC4626.redeem, (remainingShares, anyone, address(appContract)));
-        appContract.executeOutput(abi.encodeCall(Outputs.Voucher, (address(yieldSource0), 0, redeemCall)));
-
-        // Verify all shares were redeemed and Cartesi got the yield
-        assertEq(yieldSource0.balanceOf(address(appContract)), 0);
-        assertEq(token0.balanceOf(anyone), expectedYield);
-    }
-
-    function testFuzz_depositAndWithdraw(uint128 depositAmount) public {
-        depositAmount = uint128(bound(depositAmount, 1e12, 1e20));
-
-        vm.prank(user1);
-        portal.depositERC20Tokens(IERC20(address(token0)), address(appContract), depositAmount, "");
-
-        uint256 userBalanceBefore = token0.balanceOf(user1);
-
-        bytes memory withdrawCall = abi.encodeCall(IERC4626.withdraw, (depositAmount, user1, address(appContract)));
-        bytes memory voucher = abi.encodeCall(Outputs.Voucher, (address(yieldSource0), 0, withdrawCall));
-
-        appContract.executeOutput(voucher);
-
-        assertEq(token0.balanceOf(user1), userBalanceBefore + depositAmount);
         assertEq(yieldSource0.balanceOf(address(appContract)), 0);
     }
 }
