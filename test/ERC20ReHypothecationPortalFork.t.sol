@@ -14,7 +14,7 @@ import {ERC20ReHypothecationPortal} from "../src/portal/ERC20ReHypothecationPort
 contract ERC20ReHypothecationPortalForkTest is Test {
     // Mainnet
     IERC20 constant USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-    IERC4626 constant MORPHO_VAULT = IERC4626(0xe3Acb3A0cC24C7b176101900715e38E8e789DAd4); // Morpho Vault by https://www.steakhouse.financial/
+    IERC4626 constant MORPHO_VAULT = IERC4626(0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB); // Morpho Vault by https://www.steakhouse.financial/
     IInputBox constant INPUT_BOX = IInputBox(0xc70074BDD26d8cF983Ca6A5b89b8db52D5850051);
 
     MockApplication appContract;
@@ -79,7 +79,6 @@ contract ERC20ReHypothecationPortalForkTest is Test {
         console.log(
             "Application asset balance:", MORPHO_VAULT.previewRedeem(MORPHO_VAULT.balanceOf(address(appContract)))
         );
-        console.log("Yield claimed:", yieldClaimed);
 
         assertEq(
             MORPHO_VAULT.previewRedeem(MORPHO_VAULT.balanceOf(address(appContract))),
@@ -127,7 +126,6 @@ contract ERC20ReHypothecationPortalForkTest is Test {
         console.log(
             "Application asset balance:", MORPHO_VAULT.previewRedeem(MORPHO_VAULT.balanceOf(address(appContract)))
         );
-        console.log("Yield claimed:", yieldClaimed);
 
         assertEq(
             MORPHO_VAULT.previewRedeem(MORPHO_VAULT.balanceOf(address(appContract))),
