@@ -1,4 +1,6 @@
-pragma solidity ^0.8.8;
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.33;
 
 import {Ownable} from "@openzeppelin-contracts-5.2.0/access/Ownable.sol";
 import {IERC20} from "@openzeppelin-contracts-5.2.0/token/ERC20/IERC20.sol";
@@ -11,7 +13,7 @@ import {InputEncoding} from "cartesi-rollups-contracts-2.1.1/src/common/InputEnc
 
 /// @title ERC-20 Re-Hypothecation Portal
 ///
-/// @notice A Cartesi Portal that enables token rehypothecation into external yield sources.
+/// @notice A Cartesi Portal that enables token re-hypothecation into external yield sources.
 ///
 /// Allows users to deposit assets into external yield-generating sources (i.e. ERC-4626 vaults or lending protocols) while the application holds the vault shares and manages user balances off-chain.
 ///
@@ -34,9 +36,7 @@ contract ERC20ReHypothecationPortal is IERC20Portal, Portal, Ownable {
     constructor(IInputBox inputBox, address initialOwner) Portal(inputBox) Ownable(initialOwner) {}
 
     /// @inheritdoc IERC20Portal
-    /// @dev Transfers tokens from sender, deposits into the configured ERC-4626 yield source,
-    /// and notifies the application.
-    /// The vault shares are held by the application, while user balances are tracked off-chain.
+    /// @dev Transfers tokens from sender, deposits into the configured ERC-4626 yield source, and notifies the application. The vault shares are held by the application, while user balances are tracked off-chain.
     function depositERC20Tokens(IERC20 token, address appContract, uint256 value, bytes calldata execLayerData)
         external
         override

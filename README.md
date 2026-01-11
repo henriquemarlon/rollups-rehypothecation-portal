@@ -147,14 +147,6 @@ During deployment, you will be prompted to enter:
    make deploy-erc20-rehypothecation-portal
    ```
 
-3. Simulate deployment (without broadcasting):
-
-   ```sh
-   make deploy-simulate
-   ```
-
-   This is useful for testing deployment scripts and verifying gas costs without actually deploying contracts.
-
 ## Testing
 
 Run contract tests:
