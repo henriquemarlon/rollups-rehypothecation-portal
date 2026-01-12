@@ -3,7 +3,7 @@
 </div>
 <br>
 <div align="center">
-<i>A Cartesi Rollups Portal for ERC-20 Tokens Re-Hypothecation</i>
+<i>Cartesi Rollups Portal for ERC-20 Tokens Re-Hypothecation</i>
 </div>
 <div align="center">
 <b>Using yield‑generating ERC‑4626 vaults while keeping tokens available for use in an application.</b>
